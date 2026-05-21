@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Large data files (do NOT commit embeddings or datasets)
+models/*
+!models/.gitkeep
+datasets/*
+!datasets/.gitkeep
+
+# Outputs
+figures/*.png
+figures/*.pdf
+!figures/.gitkeep
+*.log
+results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Notebook outputs (commit clean notebooks only)
+notebooks/*.ipynb_checkpoints/
