@@ -1,60 +1,72 @@
-"""
-Loaders for embeddings and lexicons.
-
-Owner: Person B
-"""
-from __future__ import annotations
+"""Loaders for embeddings and WordNet lexicons."""
+import os, pickle
 from pathlib import Path
+import numpy as np
 from gensim.models import KeyedVectors
+from nltk.corpus import wordnet as wn
 
 
-def load_embeddings(name: str, path: Path) -> KeyedVectors:
+def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors:
+    """Load GloVe text-format embeddings into a gensim KeyedVectors."""
+    path = Path(path)
+    print(f"Loading GloVe from {path.name}...")
+    words, vecs = [], []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            parts = line.rstrip().split(" ")
+            words.append(parts[0])
+            vecs.append(np.array(parts[1:], dtype=np.float32))
+    if vector_size is None: vector_size = len(vecs[0])
+    kv = KeyedVectors(vector_size=vector_size)
+    kv.add_vectors(words, np.stack(vecs))
+    print(f"  loaded {len(words)} vectors, dim={vector_size}")
+    return kv
+
+
+def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
+                          cache_path: str | Path | None = None,
+                          lowercase: bool = True) -> dict[str, list[str]]:
     """
-    Load pre-trained embeddings.
+    Build the full English WordNet lexicon graph.
 
     Args:
-        name: one of {"glove", "word2vec", "fasttext"}
-        path: path to the embedding file
+        relations: subset of {"synonyms", "hypernyms", "hyponyms"}
+        cache_path: if given, cache the result to a pickle file
+        lowercase: convert all lemmas to lowercase (matches GloVe vocabulary)
 
     Returns:
-        gensim KeyedVectors object
+        dict mapping each word to its sorted list of related words
     """
-    raise NotImplementedError("Person B: implement in Week 1")
+    key = tuple(sorted(relations))
+    if cache_path and Path(cache_path).exists():
+        print(f"Loading cached lexicon from {cache_path}...")
+        with open(cache_path, "rb") as f: cached = pickle.load(f)
+        if cached.get("relations") == key:
+            print(f"  loaded {len(cached['lexicon'])} entries")
+            return cached["lexicon"]
+        print("  cache mismatch (different relations) — rebuilding")
 
+    print(f"Building WordNet lexicon (relations: {key})...")
+    lexicon = {}
+    norm = (lambda s: s.lower()) if lowercase else (lambda s: s)
+    for synset in wn.all_synsets():
+        # collect lemmas of this synset, hypernyms, hyponyms as configured
+        out = set()
+        if "synonyms" in relations:
+            out.update(norm(l.name()) for l in synset.lemmas() if "_" not in l.name())
+        if "hypernyms" in relations:
+            out.update(norm(l.name()) for hyp in synset.hypernyms() for l in hyp.lemmas() if "_" not in l.name())
+        if "hyponyms" in relations:
+            out.update(norm(l.name()) for hyp in synset.hyponyms() for l in hyp.lemmas() if "_" not in l.name())
+        for lemma in synset.lemmas():
+            w = norm(lemma.name())
+            if "_" in lemma.name(): continue
+            lexicon.setdefault(w, set()).update(out - {w})
+    lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items() if neighbors}
+    print(f"  built {len(lexicon)} entries, avg degree {np.mean([len(v) for v in lexicon.values()]):.2f}")
 
-def build_lexicon(name: str) -> dict[str, list[str]]:
-    """
-    Build a semantic lexicon graph.
-
-    Args:
-        name: one of {"wn_syn", "wn_all", "ppdb", "framenet", "wolf"}
-
-    Returns:
-        dict mapping each word to its list of related words
-    """
-    raise NotImplementedError("Person B: implement in Week 1-2")
-
-
-def build_wordnet_lexicon(relation_types: list[str]) -> dict[str, list[str]]:
-    """
-    Build a WordNet lexicon with configurable relation types.
-
-    Args:
-        relation_types: subset of {"synonyms", "hypernyms", "hyponyms"}
-    """
-    raise NotImplementedError
-
-
-def build_ppdb_lexicon(path: Path) -> dict[str, list[str]]:
-    """Parse PPDB XL lexical file into a lexicon dict."""
-    raise NotImplementedError
-
-
-def build_framenet_lexicon() -> dict[str, list[str]]:
-    """Connect words that evoke the same FrameNet frame."""
-    raise NotImplementedError
-
-
-def build_wolf_lexicon(path: Path) -> dict[str, list[str]]:
-    """Parse Wolf (French WordNet) XML into a lexicon dict."""
-    raise NotImplementedError
+    if cache_path:
+        with open(cache_path, "wb") as f:
+            pickle.dump({"relations": key, "lexicon": lexicon}, f)
+        print(f"  cached to {cache_path}")
+    return lexicon
