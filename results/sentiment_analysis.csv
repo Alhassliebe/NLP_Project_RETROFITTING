@@ -1,0 +1,3 @@
+setting,accuracy,f1
+baseline,0.7718,0.7858
+retrofitted_wn_all,0.7683,0.7837

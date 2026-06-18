@@ -17,11 +17,7 @@ datasets/*
 !datasets/.gitkeep
 
 # Outputs
-figures/*.png
-figures/*.pdf
-!figures/.gitkeep
 *.log
-results/
 
 # IDE
 .vscode/
