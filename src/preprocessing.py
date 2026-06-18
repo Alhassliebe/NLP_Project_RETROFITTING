@@ -23,20 +23,20 @@ def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors
     return kv
 
 
+def load_fasttext(path: str | Path) -> KeyedVectors:
+    """Load fastText binary embeddings (.bin) into gensim KeyedVectors."""
+    from gensim.models.fasttext import load_facebook_vectors
+    path = Path(path)
+    print(f"Loading fastText from {path.name}...")
+    kv = load_facebook_vectors(str(path))
+    print(f"  loaded {len(kv.key_to_index)} vectors, dim={kv.vector_size}")
+    return kv
+
+
 def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
                           cache_path: str | Path | None = None,
                           lowercase: bool = True) -> dict[str, list[str]]:
-    """
-    Build the full English WordNet lexicon graph.
-
-    Args:
-        relations: subset of {"synonyms", "hypernyms", "hyponyms"}
-        cache_path: if given, cache the result to a pickle file
-        lowercase: convert all lemmas to lowercase (matches GloVe vocabulary)
-
-    Returns:
-        dict mapping each word to its sorted list of related words
-    """
+    """Build the full English WordNet lexicon graph."""
     key = tuple(sorted(relations))
     if cache_path and Path(cache_path).exists():
         print(f"Loading cached lexicon from {cache_path}...")
@@ -69,20 +69,12 @@ def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
             pickle.dump({"relations": key, "lexicon": lexicon}, f)
         print(f"  cached to {cache_path}")
     return lexicon
+
+
 def build_wolf_lexicon(path: str | Path,
                        cache_path: str | Path | None = None) -> dict[str, list[str]]:
-    """
-    Parse Wolf (French WordNet) XML and extract synonym relations.
-
-    Args:
-        path: path to wolf-1.0b4.xml
-        cache_path: optional pickle cache path
-
-    Returns:
-        dict mapping each French word to its sorted list of synonyms
-    """
+    """Parse Wolf (French WordNet) XML and extract synonym relations."""
     import xml.etree.ElementTree as ET
-
     path = Path(path)
 
     if cache_path and Path(cache_path).exists():
@@ -95,8 +87,8 @@ def build_wolf_lexicon(path: str | Path,
     print(f"Parsing Wolf XML from {path.name}...")
     tree = ET.parse(path)
     root = tree.getroot()
-
     lexicon = {}
+
     for synset in root.iter("SYNSET"):
         lemmas = []
         synonym = synset.find("SYNONYM")
@@ -105,10 +97,8 @@ def build_wolf_lexicon(path: str | Path,
         for literal in synonym.iter("LITERAL"):
             if literal.text:
                 word = literal.text.strip().lower()
-                if word == "_empty_":
-                    continue
-                if " " in word or "." in word:
-                    continue
+                if word == "_empty_": continue
+                if " " in word or "." in word: continue
                 if not all(c.isalpha() or c == "-" for c in word):
                     continue
                 lemmas.append(word)
@@ -122,81 +112,15 @@ def build_wolf_lexicon(path: str | Path,
     print(f"  avg degree: {sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
 
     if cache_path:
-        if cache_path and Path(cache_path).exists():
-            Path(cache_path).unlink()
         with open(cache_path, "wb") as f:
             pickle.dump(lexicon, f)
         print(f"  cached to {cache_path}")
-
     return lexicon
-def load_fasttext(path: str | Path) -> KeyedVectors:
-    """
-    Load fastText binary embeddings (.bin) into gensim KeyedVectors.
-
-    Args:
-        path: path to .bin file (e.g. cc.fr.300.bin)
-
-    Returns:
-        KeyedVectors with fastText embeddings
-    """
-    from gensim.models.fasttext import load_facebook_vectors
-    path = Path(path)
-    print(f"Loading fastText from {path.name}...")
-    kv = load_facebook_vectors(str(path))
-    print(f"  loaded {len(kv.key_to_index)} vectors, dim={kv.vector_size}")
-    return kv
-def build_lexicon(name: str, **kwargs) -> dict[str, list[str]]:
-    """
-    Unified lexicon loader. Dispatches to the appropriate builder.
-
-    Args:
-        name: one of "wn_syn", "wn_all", "wn_hyper", "wn_hypo", "framenet", "wolf"
-        **kwargs: passed to the underlying builder (e.g. path, cache_path)
-
-    Returns:
-        dict mapping each word to its sorted list of related words
-
-    Examples:
-        build_lexicon("wn_all")
-        build_lexicon("wolf", path="datasets/wolf-1.0b4.xml")
-    """
-    if name == "wn_syn":
-        return build_wordnet_lexicon(relations=("synonyms",), **kwargs)
-
-    elif name == "wn_all":
-        return build_wordnet_lexicon(
-            relations=("synonyms", "hypernyms", "hyponyms"), **kwargs)
-
-    elif name == "wn_hyper":
-        return build_wordnet_lexicon(relations=("hypernyms",), **kwargs)
-
-    elif name == "wn_hypo":
-        return build_wordnet_lexicon(relations=("hyponyms",), **kwargs)
-
-    elif name == "framenet":
-        return build_framenet_lexicon(**kwargs)
-
-    elif name == "wolf":
-        path = kwargs.pop("path", "datasets/wolf-1.0b4.xml")
-        return build_wolf_lexicon(path=path, **kwargs)
-
-    else:
-        raise ValueError(
-            f"Unknown lexicon: '{name}'. "
-            f"Choose from: wn_syn, wn_all, wn_hyper, wn_hypo, framenet, wolf"
-        )
 
 
 def build_framenet_lexicon() -> dict[str, list[str]]:
-    """
-    Build a lexicon from FrameNet: two words are connected if they
-    evoke the same frame.
-
-    Returns:
-        dict mapping each word to its sorted list of co-frame words
-    """
+    """Build a lexicon from FrameNet: two words connected if they evoke the same frame."""
     from nltk.corpus import framenet as fn
-
     print("Building FrameNet lexicon...")
     lexicon = {}
     for frame in fn.frames():
@@ -210,8 +134,30 @@ def build_framenet_lexicon() -> dict[str, list[str]]:
             neighbors = [w for w in words if w != word]
             if neighbors:
                 lexicon.setdefault(word, set()).update(neighbors)
-
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items()}
     print(f"  built {len(lexicon)} entries")
     print(f"  avg degree: {sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
     return lexicon
+
+
+def build_lexicon(name: str, **kwargs) -> dict[str, list[str]]:
+    """Unified lexicon loader. Dispatches to the appropriate builder."""
+    if name == "wn_syn":
+        return build_wordnet_lexicon(relations=("synonyms",), **kwargs)
+    elif name == "wn_all":
+        return build_wordnet_lexicon(
+            relations=("synonyms", "hypernyms", "hyponyms"), **kwargs)
+    elif name == "wn_hyper":
+        return build_wordnet_lexicon(relations=("hypernyms",), **kwargs)
+    elif name == "wn_hypo":
+        return build_wordnet_lexicon(relations=("hyponyms",), **kwargs)
+    elif name == "framenet":
+        return build_framenet_lexicon(**kwargs)
+    elif name == "wolf":
+        path = kwargs.pop("path", "datasets/wolf-1.0b4.xml")
+        return build_wolf_lexicon(path=path, **kwargs)
+    else:
+        raise ValueError(
+            f"Unknown lexicon: '{name}'. "
+            f"Choose from: wn_syn, wn_all, wn_hyper, wn_hypo, framenet, wolf"
+        )
