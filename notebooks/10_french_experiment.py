@@ -50,9 +50,9 @@ def evaluate_rg65(kv, df, label):
 print("\nBaseline (before retrofitting):")
 rho_before = evaluate_rg65(kv, df, "baseline")
 
-print("\nRetrofitting (intersection OOV, n_iter=10)...")
+print("\nRetrofitting (n_iter=10)...")
 kv_retro, conv = retrofit(kv, wolf, n_iter=10, alpha=1.0,
-                           beta="inv_degree", oov_strategy="intersection",
+                           beta="inv_degree",
                            return_convergence=True, verbose=True)
 print(f"  Convergence: {conv[0]:.2f} → {conv[-1]:.2e}")
 
