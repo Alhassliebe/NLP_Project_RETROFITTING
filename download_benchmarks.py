@@ -34,8 +34,8 @@ WS353_SIM_URL = "https://raw.githubusercontent.com/gsi-upm/sematch/master/sematc
 WS353_REL_URL = "https://raw.githubusercontent.com/gsi-upm/sematch/master/sematch/dataset/wordsim/wordsim_relatedness_goldstandard.txt"
 
 for label, url, path in [
-    ("WordSim-353 (similarity)", WS353_SIM_URL, "datasets/wordsim353_sim.csv"),
-    ("WordSim-353 (relatedness)", WS353_REL_URL, "datasets/wordsim353_rel.csv"),
+    ("WordSim-353 (similarity)", WS353_SIM_URL, "datasets/wordsim353_similarity.csv"),
+    ("WordSim-353 (relatedness)", WS353_REL_URL, "datasets/wordsim353_relatedness.csv"),
 ]:
     try:
         print(f"\nDownloading {label}...")
