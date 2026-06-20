@@ -10,7 +10,6 @@ N_SEEDS_NOUN, N_SEEDS_ADJ = 25, 25  # random seed words per POS
 NEIGHBORS_PER_SEED = 4               # up to K WN_all neighbors added per seed
 TOP_K_GLOVE = 20000
 
-# Step 1: WordNet relation helper, used both for sampling and for building lexicons
 def get_related(word, relations):
     out = set()
     for s in wn.synsets(word):
@@ -22,7 +21,6 @@ def get_related(word, relations):
             out.update(l.name().lower() for hyp in s.hyponyms() for l in hyp.lemmas() if "_" not in l.name())
     return out - {word}
 
-# Step 2: collect candidate seeds from WordNet (>=2 synonyms, +hypernyms+hyponyms for nouns)
 def collect_candidates(pos):
     cands = []
     for synset in wn.all_synsets(pos=pos):
@@ -39,7 +37,6 @@ def collect_candidates(pos):
             cands.append(name)
     return sorted(set(cands))
 
-# Step 3: load GloVe top-K vocabulary
 print(f"Loading GloVe vocabulary (top {TOP_K_GLOVE})...")
 glove_vocab = []
 with open(GLOVE_PATH, encoding="utf-8") as f:
@@ -48,7 +45,6 @@ with open(GLOVE_PATH, encoding="utf-8") as f:
         glove_vocab.append(line.split(" ", 1)[0])
 glove_set = set(glove_vocab)
 
-# Step 4: filter candidates by GloVe membership, randomly choose seeds, expand by neighbors
 print("Collecting WordNet candidates...")
 noun_cands = [w for w in collect_candidates(wn.NOUN) if w in glove_set]
 adj_cands = [w for w in collect_candidates(wn.ADJ) if w in glove_set]
@@ -67,7 +63,6 @@ sample = sorted(sample)
 sample_set = set(sample)
 print(f"Sample: {len(seeds)} seeds + neighbors = {len(sample)} words total")
 
-# Step 5: load embedding rows for the sample
 vectors = {}
 with open(GLOVE_PATH, encoding="utf-8") as f:
     for line in f:
@@ -76,7 +71,7 @@ with open(GLOVE_PATH, encoding="utf-8") as f:
             vectors[word] = np.array(vec, dtype=np.float32)
 print(f"Loaded {len(vectors)}/{len(sample)} GloVe vectors")
 
-# Step 6: build WN_syn and WN_all lexicons (intersection OOV strategy)
+# intersection OOV: only keep words present in both GloVe and WN
 vocab = set(vectors)
 lex_syn = {w: sorted(get_related(w, ("synonyms",)) & vocab) for w in vocab
            if get_related(w, ("synonyms",)) & vocab}
@@ -87,7 +82,6 @@ print(f"WN_all coverage: {len(lex_all)}/{len(vocab)} words have neighbours")
 if lex_syn: print(f"WN_syn avg degree: {np.mean([len(v) for v in lex_syn.values()]):.2f}")
 if lex_all: print(f"WN_all avg degree: {np.mean([len(v) for v in lex_all.values()]):.2f}")
 
-# Step 7: retrofitting update (eq. 4 from the paper)
 def cosine(v1, v2): return float(v1 @ v2 / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
 def retrofit(vectors, lexicon, n_iter=10, alpha=1.0):
@@ -105,7 +99,6 @@ def retrofit(vectors, lexicon, n_iter=10, alpha=1.0):
         log.append(change)
     return new, log
 
-# Step 8: report Δ cos sim on related pairs from the lexicon
 def evaluate(orig, retro, lexicon, label):
     pairs = {tuple(sorted([w, n])) for w, neighbors in lexicon.items() for n in neighbors}
     if not pairs:

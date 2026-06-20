@@ -1,0 +1,5 @@
+variant,median_ms,min_ms,max_ms,speedup
+A. baseline,11.94,11.81,12.02,1.0
+B. + index arrays,9.55,9.36,10.23,1.25
+C. + matrix assembly,9.94,9.84,10.28,1.2
+D. both,7.63,7.6,7.85,1.57

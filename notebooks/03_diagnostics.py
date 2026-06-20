@@ -40,7 +40,7 @@ def collect_candidates(pos):
             cands.append(name)
     return sorted(set(cands))
 
-# Step 1: reproduce the prototype's sample (same seed, same logic)
+# reproduce the same sample as the prototype (same seed)
 glove_set = set()
 with open(GLOVE_PATH, encoding="utf-8") as f:
     for i, line in enumerate(f):
@@ -59,7 +59,7 @@ vocab = sorted(sample)
 vocab_set = set(vocab)
 print(f"Sample: {len(vocab)} words")
 
-# Step 2: lexicon composition — how many edges come from each relation type
+# lexicon composition — how many edges per relation type
 syn_edges, hyper_edges, hypo_edges = 0, 0, 0
 for w in vocab:
     syns = get_related(w, ("synonyms",)) & vocab_set
@@ -74,7 +74,6 @@ print(f"  hypernyms (added):  {hyper_edges}")
 print(f"  hyponyms (added):   {hypo_edges}")
 print(f"  total WN_all edges: {syn_edges + hyper_edges + hypo_edges}")
 
-# Sample 5 words to show concrete WN_syn vs WN_all neighbours
 print(f"\nConcrete examples — 5 random sample words:")
 random.seed(SEED + 10)
 for w in random.sample(vocab, 5):
@@ -84,7 +83,7 @@ for w in random.sample(vocab, 5):
     print(f"    WN_syn neighbors: {sorted(syns) if syns else '(none)'}")
     print(f"    WN_all adds:      {sorted(added) if added else '(none)'}")
 
-# Step 3: load embeddings, retrofit, measure centroid drift
+# load, retrofit, measure centroid drift
 words, vecs = [], []
 with open(GLOVE_PATH, encoding="utf-8") as f:
     for line in f:

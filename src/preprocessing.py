@@ -1,4 +1,4 @@
-"""Loaders for embeddings and WordNet lexicons."""
+"""Loaders for embeddings and lexicons."""
 import os, pickle
 from pathlib import Path
 import numpy as np
@@ -7,7 +7,7 @@ from nltk.corpus import wordnet as wn
 
 
 def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors:
-    """Load GloVe text-format embeddings into a gensim KeyedVectors."""
+    """Load GloVe text-format embeddings into KeyedVectors."""
     path = Path(path)
     print(f"Loading GloVe from {path.name}...")
     words, vecs = [], []
@@ -16,7 +16,8 @@ def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors
             parts = line.rstrip().split(" ")
             words.append(parts[0])
             vecs.append(np.array(parts[1:], dtype=np.float32))
-    if vector_size is None: vector_size = len(vecs[0])
+    if vector_size is None:
+        vector_size = len(vecs[0])
     kv = KeyedVectors(vector_size=vector_size)
     kv.add_vectors(words, np.stack(vecs))
     print(f"  loaded {len(words)} vectors, dim={vector_size}")
@@ -26,21 +27,17 @@ def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors
 def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
                           cache_path: str | Path | None = None,
                           lowercase: bool = True) -> dict[str, list[str]]:
-    """
-    Build the full English WordNet lexicon graph.
+    """Build the English WordNet lexicon graph.
 
-    Args:
-        relations: subset of {"synonyms", "hypernyms", "hyponyms"}
-        cache_path: if given, cache the result to a pickle file
-        lowercase: convert all lemmas to lowercase (matches GloVe vocabulary)
-
-    Returns:
-        dict mapping each word to its sorted list of related words
+    relations: which relation types to include
+    cache_path: pickle cache — will reload if the relations match
+    lowercase: convert lemmas to lowercase (matches GloVe vocab)
     """
     key = tuple(sorted(relations))
     if cache_path and Path(cache_path).exists():
         print(f"Loading cached lexicon from {cache_path}...")
-        with open(cache_path, "rb") as f: cached = pickle.load(f)
+        with open(cache_path, "rb") as f:
+            cached = pickle.load(f)
         if cached.get("relations") == key:
             print(f"  loaded {len(cached['lexicon'])} entries")
             return cached["lexicon"]
@@ -54,33 +51,30 @@ def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
         if "synonyms" in relations:
             out.update(norm(l.name()) for l in synset.lemmas() if "_" not in l.name())
         if "hypernyms" in relations:
-            out.update(norm(l.name()) for hyp in synset.hypernyms() for l in hyp.lemmas() if "_" not in l.name())
+            out.update(norm(l.name()) for hyp in synset.hypernyms()
+                       for l in hyp.lemmas() if "_" not in l.name())
         if "hyponyms" in relations:
-            out.update(norm(l.name()) for hyp in synset.hyponyms() for l in hyp.lemmas() if "_" not in l.name())
+            out.update(norm(l.name()) for hyp in synset.hyponyms()
+                       for l in hyp.lemmas() if "_" not in l.name())
         for lemma in synset.lemmas():
             w = norm(lemma.name())
-            if "_" in lemma.name(): continue
+            if "_" in lemma.name():
+                continue
             lexicon.setdefault(w, set()).update(out - {w})
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items() if neighbors}
-    print(f"  built {len(lexicon)} entries, avg degree {np.mean([len(v) for v in lexicon.values()]):.2f}")
+    print(f"  built {len(lexicon)} entries, avg degree "
+          f"{np.mean([len(v) for v in lexicon.values()]):.2f}")
 
     if cache_path:
         with open(cache_path, "wb") as f:
             pickle.dump({"relations": key, "lexicon": lexicon}, f)
         print(f"  cached to {cache_path}")
     return lexicon
+
+
 def build_wolf_lexicon(path: str | Path,
                        cache_path: str | Path | None = None) -> dict[str, list[str]]:
-    """
-    Parse Wolf (French WordNet) XML and extract synonym relations.
-
-    Args:
-        path: path to wolf-1.0b4.xml
-        cache_path: optional pickle cache path
-
-    Returns:
-        dict mapping each French word to its sorted list of synonyms
-    """
+    """Parse Wolf (French WordNet) XML and extract synonym relations."""
     import xml.etree.ElementTree as ET
 
     path = Path(path)
@@ -118,68 +112,48 @@ def build_wolf_lexicon(path: str | Path,
                 lexicon.setdefault(word, set()).update(neighbors)
 
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items()}
-    print(f"  built {len(lexicon)} entries")
-    print(f"  avg degree: {sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
+    print(f"  built {len(lexicon)} entries, avg degree "
+          f"{sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
 
     if cache_path:
-        if cache_path and Path(cache_path).exists():
+        if Path(cache_path).exists():
             Path(cache_path).unlink()
         with open(cache_path, "wb") as f:
             pickle.dump(lexicon, f)
         print(f"  cached to {cache_path}")
 
     return lexicon
+
+
 def load_fasttext(path: str | Path) -> KeyedVectors:
-    """
-    Load fastText binary embeddings (.bin) into gensim KeyedVectors.
-
-    Args:
-        path: path to .bin file (e.g. cc.fr.300.bin)
-
-    Returns:
-        KeyedVectors with fastText embeddings
-    """
+    """Load fastText binary embeddings (.bin) into KeyedVectors."""
     from gensim.models.fasttext import load_facebook_vectors
     path = Path(path)
     print(f"Loading fastText from {path.name}...")
     kv = load_facebook_vectors(str(path))
     print(f"  loaded {len(kv.key_to_index)} vectors, dim={kv.vector_size}")
     return kv
+
+
 def build_lexicon(name: str, **kwargs) -> dict[str, list[str]]:
-    """
-    Unified lexicon loader. Dispatches to the appropriate builder.
+    """Dispatch to the right lexicon builder by name.
 
-    Args:
-        name: one of "wn_syn", "wn_all", "wn_hyper", "wn_hypo", "framenet", "wolf"
-        **kwargs: passed to the underlying builder (e.g. path, cache_path)
-
-    Returns:
-        dict mapping each word to its sorted list of related words
-
-    Examples:
-        build_lexicon("wn_all")
-        build_lexicon("wolf", path="datasets/wolf-1.0b4.xml")
+    name: one of "wn_syn", "wn_all", "wn_hyper", "wn_hypo", "framenet", "wolf"
+    kwargs: passed through to the underlying builder (e.g. cache_path, path)
     """
     if name == "wn_syn":
         return build_wordnet_lexicon(relations=("synonyms",), **kwargs)
-
     elif name == "wn_all":
-        return build_wordnet_lexicon(
-            relations=("synonyms", "hypernyms", "hyponyms"), **kwargs)
-
+        return build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"), **kwargs)
     elif name == "wn_hyper":
         return build_wordnet_lexicon(relations=("hypernyms",), **kwargs)
-
     elif name == "wn_hypo":
         return build_wordnet_lexicon(relations=("hyponyms",), **kwargs)
-
     elif name == "framenet":
         return build_framenet_lexicon(**kwargs)
-
     elif name == "wolf":
         path = kwargs.pop("path", "datasets/wolf-1.0b4.xml")
         return build_wolf_lexicon(path=path, **kwargs)
-
     else:
         raise ValueError(
             f"Unknown lexicon: '{name}'. "
@@ -188,13 +162,7 @@ def build_lexicon(name: str, **kwargs) -> dict[str, list[str]]:
 
 
 def build_framenet_lexicon() -> dict[str, list[str]]:
-    """
-    Build a lexicon from FrameNet: two words are connected if they
-    evoke the same frame.
-
-    Returns:
-        dict mapping each word to its sorted list of co-frame words
-    """
+    """Build a lexicon from FrameNet: connect words that evoke the same frame."""
     from nltk.corpus import framenet as fn
 
     print("Building FrameNet lexicon...")
@@ -212,6 +180,6 @@ def build_framenet_lexicon() -> dict[str, list[str]]:
                 lexicon.setdefault(word, set()).update(neighbors)
 
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items()}
-    print(f"  built {len(lexicon)} entries")
-    print(f"  avg degree: {sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
+    print(f"  built {len(lexicon)} entries, avg degree "
+          f"{sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
     return lexicon

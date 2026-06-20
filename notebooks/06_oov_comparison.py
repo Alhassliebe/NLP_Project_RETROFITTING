@@ -3,7 +3,7 @@
 For each strategy: run retrofit, evaluate on all three benchmarks, record coverage and time.
 fastText is handled separately (requires Kaggle / additional model download).
 """
-import sys, time, gc
+import sys, os, time, gc
 import pandas as pd
 sys.path.insert(0, "src")
 from preprocessing import load_glove, build_wordnet_lexicon
@@ -58,5 +58,6 @@ for b in ["rg65", "simlex999", "wordsim353"]:
     print(f"  {b:12s}: {best['strategy']:15s} (Δ = {best[col]:+.4f})")
 
 # Save for the report
-df.to_csv("results/oov_comparison.csv", index=False) if __import__("os").path.exists("results") else df.to_csv("oov_comparison.csv", index=False)
-print(f"\nSaved comparison to oov_comparison.csv")
+os.makedirs("results", exist_ok=True)
+df.to_csv("results/oov_comparison.csv", index=False)
+print(f"\nSaved comparison to results/oov_comparison.csv")
