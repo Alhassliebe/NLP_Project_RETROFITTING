@@ -79,7 +79,7 @@ retrofitting/
 │   ├── 08_dimensionality_experiment.py # Alena: 50/100/200/300d comparison
 │   │                                   #   → figures/dimensionality.png
 │   │                                   #   → figures/dimensionality_delta.png
-│   ├── 08_french_experiment.py         # Botakoz: early French prototype (standalone)
+│   │
 │   ├── 09_alpha_beta_grid.py           # Alena: hyperparameter sensitivity (α, β)
 │   │                                   #   - α sweep (β=inv_degree, 10 steps)
 │   │                                   #   - β sweep (α=1.0, 10 steps)
