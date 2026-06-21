@@ -11,28 +11,6 @@ Reimplementation and analysis of Faruqui et al. (2015),
 
 ---
 
-## Setup
-
-```bash
-# Clone
-git clone <repo-url>
-cd retrofitting
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate     # Linux/macOS
-# venv\Scripts\activate      # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-pip install datasets           # for sentiment analysis (SST-2)
-
-# Download NLTK resources
-python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4'); nltk.download('framenet_v17')"
-```
-
----
-
 ## Data
 
 Download manually into `models/` and `datasets/`:
@@ -114,34 +92,34 @@ retrofitting/
 │   ├── 13_optimization_benchmark.py    # Alena: runtime profiling of retrofit loop
 │   └── 14_convergence_prototype.py     # Alena: n_iter convergence on prototype sample
 ├── datasets/                   # Benchmark datasets
-│   ├── rg65_en.csv             #   RG-65 English
-│   ├── rg65_french.txt         #   RG-65 French
-│   ├── simlex999.csv           #   SimLex-999
-│   └── wordsim353crowd.csv     #   WordSim-353
+│   ├── rg65_en.csv             # RG-65 English
+│   ├── rg65_french.txt         # RG-65 French
+│   ├── simlex999.csv           # SimLex-999
+│   └── wordsim353crowd.csv     # WordSim-353
 ├── models/                                # Pre-trained embeddings (large files, not in git)
 │   ├── glove.6B.{50,100,200,300}d.txt
 │   ├── glove_300d_retrofitted_wn_all.kv   # saved by notebook 05
 │   └── wn_all_lexicon.pkl                 # cached by preprocessing
 ├── figures/                       # Generated plots
-│   ├── alpha_beta_curves.png      #   sweep line plots (notebook 09)
-│   ├── alpha_beta_heatmap.png     #   2D grid heatmaps (notebook 09)
-│   ├── convergence.png            #   n_iter convergence (notebook 07)
-│   ├── dimensionality.png         #   Spearman ρ by embedding size (notebook 08)
-│   └── dimensionality_delta.png   #  Δ Spearman ρ by embedding size (notebook 08)
+│   ├── alpha_beta_curves.png      # sweep line plots (notebook 09)
+│   ├── alpha_beta_heatmap.png     # 2D grid heatmaps (notebook 09)
+│   ├── convergence.png            # n_iter convergence (notebook 07)
+│   ├── dimensionality.png         # Spearman ρ by embedding size (notebook 08)
+│   └── dimensionality_delta.png   # Δ Spearman ρ by embedding size (notebook 08)
 ├── results/                             # CSV outputs from experiments
-│   ├── alpha_beta_grid.csv              #   earlier grid search results
-│   ├── alpha_sweep.csv                  #   α sweep (notebook 09)
-│   ├── beta_sweep.csv                   #   β sweep (notebook 09)
-│   ├── grid2d.csv                       #   2D joint grid (notebook 09)
-│   ├── convergence_analysis.csv         #   notebook 07
-│   ├── convergence_prototype.csv        #   notebook 14
-│   ├── dimensionality_experiment.csv    #   notebook 08
-│   ├── oov_comparison.csv               #   notebook 06
-│   ├── optimization_benchmark.csv       #   notebook 13
-│   ├── qualitative_full.csv             #   notebook 12
-│   ├── qualitative_top_decrease.csv     #   notebook 12
-│   ├── qualitative_top_increase.csv     #   notebook 12
-│   └── sentiment_analysis.csv           #   notebook 11
+│   ├── alpha_beta_grid.csv              # earlier grid search results
+│   ├── alpha_sweep.csv                  # α sweep (notebook 09)
+│   ├── beta_sweep.csv                   # β sweep (notebook 09)
+│   ├── grid2d.csv                       # 2D joint grid (notebook 09)
+│   ├── convergence_analysis.csv         # notebook 07
+│   ├── convergence_prototype.csv        # notebook 14
+│   ├── dimensionality_experiment.csv    # notebook 08
+│   ├── oov_comparison.csv               # notebook 06
+│   ├── optimization_benchmark.csv       # notebook 13
+│   ├── qualitative_full.csv             # notebook 12
+│   ├── qualitative_top_decrease.csv     # notebook 12
+│   ├── qualitative_top_increase.csv     # notebook 12
+│   └── sentiment_analysis.csv           # notebook 11
 ├── main.py                    # CLI entry point
 ├── download_benchmarks.py     # Auto-download RG-65, SimLex-999
 ├── fix_wordsim.py             # Creates wordsim353_similarity.csv if missing
@@ -152,42 +130,75 @@ retrofitting/
 
 ---
 
-## Usage
+## Setup
 
-### Run the full pipeline
+### 1. Clone and install
 
 ```bash
-# English: GloVe 300d + WordNet WN_all
-python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999 wordsim353
+git clone https://github.com/Alhassliebe/NLP_Project_RETROFITTING.git
+cd NLP_Project_RETROFITTING
 
-# English: GloVe 300d + WordNet WN_syn only
-python main.py --embedding glove --lexicon wn_syn --benchmark rg65 simlex999
+python3 -m venv venv
 
-# French: fastText-fr + Wolf
-python main.py --embedding fasttext --lexicon wolf --benchmark rg65
+source venv/bin/activate        # macOS / Linux
+# venv\Scripts\activate         # Windows
 
-# Baseline only (no retrofitting)
-python main.py --embedding glove --lexicon wn_all --no-retrofit
+pip install -r requirements.txt
+pip install datasets
+
+python -c "import nltk; nltk.download('wordnet'); nltk.download('omw-1.4'); nltk.download('framenet_v17')"
 ```
 
-### Arguments
+### 2. Download large files
 
-| Argument | Options | Default | Description |
-|---|---|---|---|
-| `--embedding` | `glove`, `fasttext` | required | Pre-trained embeddings |
-| `--lexicon` | `wn_syn`, `wn_all`, `wn_hyper`, `wn_hypo`, `framenet`, `wolf` | required | Semantic lexicon |
-| `--benchmark` | `rg65`, `simlex999`, `wordsim353` | all three | Evaluation benchmarks |
-| `--n-iter` | integer | 10 | Number of retrofit iterations |
-| `--alpha` | float | 1.0 | Weight of original vector |
-| `--beta` | `inv_degree`, `uniform`, `inv_sq_degree` | `inv_degree` | Neighbor weight strategy |
-| `--oov-strategy` | `intersection`, `filtering`, `mean_synonyms` | `intersection` | OOV handling |
-| `--no-retrofit` | flag | False | Evaluate baseline only |
+These files are too large for Git and must be downloaded manually.
 
-Retrofitted vectors are automatically saved to `models/` after each run.
+**English embeddings — place in `models/`**
 
-### Run individual experiments
+GloVe 6B (all four sizes, ~820 MB total):
+```bash
+# macOS / Linux
+curl -L -o glove.6B.zip https://nlp.stanford.edu/data/glove.6B.zip
+unzip glove.6B.zip -d models/
+rm glove.6B.zip
+```
+```powershell
+# Windows (PowerShell)
+Invoke-WebRequest -Uri https://nlp.stanford.edu/data/glove.6B.zip -OutFile glove.6B.zip
+Expand-Archive glove.6B.zip -DestinationPath models/
+Remove-Item glove.6B.zip
+```
 
-Run notebooks in order — later ones depend on outputs from earlier ones (e.g. notebook 05 must run before 12).
+**French embeddings — place in `models/`** (required for notebook 10 only, ~4 GB):
+```bash
+# macOS / Linux
+curl -L -o models/cc.fr.300.bin.gz https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz
+gunzip models/cc.fr.300.bin.gz
+```
+```powershell
+# Windows (PowerShell)
+Invoke-WebRequest -Uri https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz -OutFile models\cc.fr.300.bin.gz
+# then decompress with 7-Zip or another tool
+```
+
+**French WordNet — place in `datasets/`** (required for notebook 10 only):
+
+Download `wolf-1.0b4.xml` from https://gforge.inria.fr/frs/?group_id=5631 and place it at `datasets/wolf-1.0b4.xml`.
+
+**English benchmarks** (RG-65, SimLex-999, WordSim-353) are already included in the repository under `datasets/`.
+
+### 3. Run individual experiments
+
+Run each notebook from the **project root** (not from inside `notebooks/`). Run them one at a time in a fresh terminal:
+
+```bash
+cd NLP_Project_RETROFITTING
+
+source venv/bin/activate        # macOS / Linux
+# venv\Scripts\activate         # Windows
+
+python notebooks/01_retrofit_prototype.py
+```
 
 ```bash
 # Prototype on 212-word sample
@@ -232,6 +243,45 @@ python notebooks/13_optimization_benchmark.py
 # Convergence on prototype sample
 python notebooks/14_convergence_prototype.py
 ```
+
+**Important notes:**
+- Notebooks 05 and 09 each take 30–60 minutes (full GloVe 300d).
+- Notebook 12 requires notebook 05 to have run first (it loads the saved retrofitted vectors from `models/`).
+- Notebooks 10, 11, 12 require `cc.fr.300.bin` and `wolf-1.0b4.xml`. All other notebooks run on English data only and have no additional dependencies beyond `models/glove.6B.*.txt`.
+- SST-2 data for notebook 11 is downloaded automatically on first run via the HuggingFace `datasets` library.
+
+### 4. Run the pipeline
+
+**CLI (single configuration):**
+
+```bash
+# English: GloVe 300d + WordNet WN_all
+python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999 wordsim353
+
+# English: GloVe 300d + WordNet WN_syn only
+python main.py --embedding glove --lexicon wn_syn --benchmark rg65 simlex999
+
+# French: fastText-fr + Wolf
+python main.py --embedding fasttext --lexicon wolf --benchmark rg65
+
+# Baseline only (no retrofitting)
+python main.py --embedding glove --lexicon wn_all --no-retrofit
+```
+
+### Arguments
+
+| Argument | Options | Default | Description |
+|---|---|---|---|
+| `--embedding` | `glove`, `fasttext` | required | Pre-trained embeddings |
+| `--lexicon` | `wn_syn`, `wn_all`, `wn_hyper`, `wn_hypo`, `framenet`, `wolf` | required | Semantic lexicon |
+| `--benchmark` | `rg65`, `simlex999`, `wordsim353` | all three | Evaluation benchmarks |
+| `--n-iter` | integer | 10 | Number of retrofit iterations |
+| `--alpha` | float | 1.0 | Weight of original vector |
+| `--beta` | `inv_degree`, `uniform`, `inv_sq_degree` | `inv_degree` | Neighbor weight strategy |
+| `--oov-strategy` | `intersection`, `filtering`, `mean_synonyms` | `intersection` | OOV handling |
+| `--no-retrofit` | flag | False | Evaluate baseline only |
+
+Retrofitted vectors are automatically saved to `models/` after each run.
 
 ---
 
