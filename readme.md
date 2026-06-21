@@ -26,7 +26,7 @@ Note: Word2Vec Google News was excluded due to memory constraints (8 GB RAM).
 ### Lexicons (→ `datasets/`)
 | File | Source |
 |---|---|
-| `wolf-1.0b4.xml` | 
+| `wolf-1.0b4.xml` | https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 |
 | WordNet | via NLTK (auto-downloaded) |
 | FrameNet | via NLTK (auto-downloaded) |
 
@@ -183,10 +183,24 @@ Invoke-WebRequest -Uri https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.
 ```
 
 **French WordNet — place in `datasets/`** (required for notebook 10 only):
+```bash
+# macOS / Linux
+[ -f data/wolf-1.0b4.xml ] || (curl -L -o data/wolf-1.0b4.xml.bz2 https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 && bunzip2 datasets/wolf-1.0b4.xml.bz2)
+```
+```powershell
+# Windows (PowerShell)
+if (-not (Test-Path "data\wolf-1.0b4.xml")) {
+    Invoke-WebRequest -Uri https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 -OutFile data\wolf-1.0b4.xml.bz2
+    # decompress with 7-Zip:
+    & "C:\Program Files\7-Zip\7z.exe" e data\wolf-1.0b4.xml.bz2 -odata\
+    Remove-Item data\wolf-1.0b4.xml.bz2
+}
+```
 
-Download `wolf-1.0b4.xml` from https://gforge.inria.fr/frs/?group_id=5631 and place it at `datasets/wolf-1.0b4.xml`.
-
-**English benchmarks** (RG-65, SimLex-999, WordSim-353) are already included in the repository under `datasets/`.
+**English benchmarks** (RG-65, SimLex-999, WordSim-353) can be downloaded by running:
+```bash
+python scripts/download_benchmarks.py
+```
 
 ### 3. Run individual experiments
 
