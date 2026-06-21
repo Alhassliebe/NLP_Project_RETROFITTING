@@ -1,51 +1,60 @@
-"""Continuous grid search over alpha and beta for retrofitting.
+"""Hyperparameter sensitivity: how do α and β affect retrofitting quality?
 
-Sweeps alpha ∈ [0.1, 2.0] and beta ∈ [0.1, 1.0] as continuous numeric values
-(N_STEPS × N_STEPS grid), runs retrofit on GloVe 300d + WN_all + intersection OOV,
-and measures Spearman ρ delta on three benchmarks.
+Three experiments, GloVe and lexicon loaded once:
+  1. α sweep  — vary α ∈ [0.1, 1.0], β fixed at inv_degree  (10 runs)
+  2. β sweep  — vary β ∈ [0.1, 1.0], α fixed at 1.0         (10 runs)
+  3. 2D grid  — all (α, β) combinations                      (100 runs)
 
-Alpha: trust in original embedding vs neighbours (paper default = 1).
-Beta: per-neighbour weight (uniform); beta ≈ 0.1-0.3 reproduces inv_degree behaviour.
-
-Each cell runs in a subprocess to keep memory bounded.
+Outputs:
+  results/alpha_sweep.csv, results/beta_sweep.csv, results/grid2d.csv
+  figures/alpha_beta_curves.png   (3 line plots, one per benchmark)
+  figures/alpha_beta_heatmap.png  (3 heatmaps,   one per benchmark)
 """
-import sys, os, json, subprocess, time
+import sys, os, time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
-from scipy.interpolate import griddata
 
-N_STEPS   = 6
-ALPHA_MIN, ALPHA_MAX = 0.1, 2.0
-BETA_MIN,  BETA_MAX  = 0.1, 1.0
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(_ROOT)
+sys.path.insert(0, os.path.join(_ROOT, "src"))
 
-ALPHAS = np.round(np.linspace(ALPHA_MIN, ALPHA_MAX, N_STEPS), 4)
-BETAS  = np.round(np.linspace(BETA_MIN,  BETA_MAX,  N_STEPS), 4)
+from preprocessing import load_glove, build_wordnet_lexicon
+from retrofit import retrofit
+from eval import evaluate_all
 
-BENCHMARKS   = ["rg65", "simlex999", "wordsim353"]
-CHILD_MARKER = "--run-cell"
+N_STEPS  = 10
+PARAM_MIN, PARAM_MAX = 0.1, 1.0
+
+ALPHAS = np.round(np.linspace(PARAM_MIN, PARAM_MAX, N_STEPS), 4)
+BETAS  = np.round(np.linspace(PARAM_MIN, PARAM_MAX, N_STEPS), 4)
+
+BETA_DEFAULT  = "inv_degree"
+ALPHA_DEFAULT = 1.0
+
+BENCHMARKS = ["rg65", "simlex999", "wordsim353"]
+
+os.makedirs("results", exist_ok=True)
+os.makedirs("figures", exist_ok=True)
+
+# load once, reuse everywhere
+print("Loading GloVe 300d...")
+glove = load_glove("models/glove.6B.300d.txt", vector_size=300)
+
+print("Loading lexicon...")
+lexicon = build_wordnet_lexicon(
+    relations=("synonyms", "hypernyms", "hyponyms"),
+    cache_path="models/wn_all_lexicon.pkl",
+)
+
+print("Computing baseline...")
+baseline_df  = evaluate_all(glove)
+baseline_rho = {r.benchmark: r.spearman_rho for r in baseline_df.itertuples()}
+print(baseline_df[["benchmark", "spearman_rho"]].to_string(index=False))
 
 
-def run_one_cell(alpha: float, beta: float) -> list[dict]:
-    """Run retrofit for one (alpha, beta) pair and return eval results."""
-    sys.path.insert(0, "src")
-    from preprocessing import load_glove, build_wordnet_lexicon
-    from retrofit import retrofit
-    from eval import evaluate_all
-
-    print(f"[α={alpha:.4f}, β={beta:.4f}] loading GloVe 300d...")
-    glove = load_glove("models/glove.6B.300d.txt", vector_size=300)
-    print(f"[α={alpha:.4f}, β={beta:.4f}] loading lexicon...")
-    lexicon = build_wordnet_lexicon(
-        relations=("synonyms", "hypernyms", "hyponyms"),
-        cache_path="models/wn_all_lexicon.pkl",
-    )
-
-    baseline     = evaluate_all(glove)
-    baseline_rho = {r.benchmark: r.spearman_rho for r in baseline.itertuples()}
-
-    print(f"[α={alpha:.4f}, β={beta:.4f}] retrofitting...")
+def run_one(alpha, beta) -> list[dict]:
     t0 = time.time()
     retrofitted = retrofit(
         glove, lexicon,
@@ -53,8 +62,6 @@ def run_one_cell(alpha: float, beta: float) -> list[dict]:
         oov_strategy="intersection", verbose=False,
     )
     elapsed = time.time() - t0
-    print(f"[α={alpha:.4f}, β={beta:.4f}] done in {elapsed:.1f}s")
-
     retro = evaluate_all(retrofitted)
     rows = []
     for r in retro.itertuples():
@@ -67,113 +74,132 @@ def run_one_cell(alpha: float, beta: float) -> list[dict]:
             "delta":           round(r.spearman_rho - baseline_rho[r.benchmark], 4),
             "time_sec":        round(elapsed, 1),
         })
+    deltas = "  ".join(f"{r['benchmark']} Δ={r['delta']:+.4f}" for r in rows)
+    print(f"{elapsed:.1f}s  |  {deltas}")
     return rows
 
 
-# child mode: runs one cell and exits
-if len(sys.argv) >= 4 and sys.argv[1] == CHILD_MARKER:
-    rows = run_one_cell(float(sys.argv[2]), float(sys.argv[3]))
-    print("===RESULT===")
-    print(json.dumps(rows))
-    sys.exit(0)
+# ── experiment 1: alpha sweep ─────────────────────────────────────────────────
+print(f"\nAlpha sweep ({N_STEPS} steps, β={BETA_DEFAULT})")
+alpha_rows = []
+for i, a in enumerate(ALPHAS, 1):
+    print(f"  [{i:2d}/{N_STEPS}] α={a:.4f} ...", end=" ", flush=True)
+    alpha_rows.extend(run_one(a, BETA_DEFAULT))
+
+df_alpha = pd.DataFrame(alpha_rows)
+df_alpha.to_csv("results/alpha_sweep.csv", index=False)
+print("Saved results/alpha_sweep.csv")
+
+# ── experiment 2: beta sweep ──────────────────────────────────────────────────
+print(f"\nBeta sweep ({N_STEPS} steps, α={ALPHA_DEFAULT})")
+beta_rows = []
+for i, b in enumerate(BETAS, 1):
+    print(f"  [{i:2d}/{N_STEPS}] β={b:.4f} ...", end=" ", flush=True)
+    beta_rows.extend(run_one(ALPHA_DEFAULT, b))
+
+df_beta = pd.DataFrame(beta_rows)
+df_beta.to_csv("results/beta_sweep.csv", index=False)
+print("Saved results/beta_sweep.csv")
+
+# ── experiment 3: 2D grid ─────────────────────────────────────────────────────
+total = len(ALPHAS) * len(BETAS)
+print(f"\n2D grid ({N_STEPS}×{N_STEPS} = {total} runs)")
+grid_rows = []
+done = 0
+for alpha in ALPHAS:
+    for beta in BETAS:
+        done += 1
+        print(f"  [{done:3d}/{total}] α={alpha:.2f}, β={beta:.2f} ...", end=" ", flush=True)
+        grid_rows.extend(run_one(alpha, float(beta)))
+
+df_grid = pd.DataFrame(grid_rows)
+df_grid.to_csv("results/grid2d.csv", index=False)
+print("Saved results/grid2d.csv")
 
 
-# parent: spawn N_STEPS² subprocesses
-total_cells = N_STEPS * N_STEPS
-print(f"Grid search: α ∈ [{ALPHA_MIN}, {ALPHA_MAX}], β ∈ [{BETA_MIN}, {BETA_MAX}], "
-      f"{N_STEPS}×{N_STEPS} = {total_cells} cells")
+# ── figure 1: line plots (sweeps) ─────────────────────────────────────────────
+titles = {"rg65": "RG-65", "simlex999": "SimLex-999", "wordsim353": "WordSim-353"}
+colors = {"alpha": "#1f77b4", "beta": "#d62728"}
 
-all_rows = []
-cell_idx  = 0
-for a in ALPHAS:
-    for b in BETAS:
-        cell_idx += 1
-        print(f"\n{'=' * 50}\nCELL {cell_idx}/{total_cells}: α={a:.4f}, β={b:.4f}\n{'=' * 50}")
-        result = subprocess.run(
-            [sys.executable, "-u", __file__, CHILD_MARKER, str(a), str(b)],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            print(f"!! subprocess failed (code {result.returncode}):")
-            print(f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
-            sys.exit(1)
-        out_lines = result.stdout.splitlines()
-        print("\n".join(out_lines[:-2]))
-        rows = json.loads(out_lines[-1])
-        all_rows.extend(rows)
-
-df = pd.DataFrame(all_rows)
-print(f"\n{'=' * 50}\nGRID SEARCH RESULTS\n{'=' * 50}")
-print(df.to_string(index=False))
-df.to_csv("results/alpha_beta_grid.csv", index=False)
-print("\nSaved to results/alpha_beta_grid.csv")
-
-
-# contour plots
-alpha_dense = np.linspace(ALPHA_MIN, ALPHA_MAX, 200)
-beta_dense  = np.linspace(BETA_MIN,  BETA_MAX,  200)
-A_dense, B_dense = np.meshgrid(alpha_dense, beta_dense)
-
-fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-
+fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=False)
 for ax, bm in zip(axes, BENCHMARKS):
-    sub    = df[df["benchmark"] == bm]
-    pts    = sub[["alpha", "beta"]].values
-    deltas = sub["delta"].values
+    sub_a = df_alpha[df_alpha["benchmark"] == bm].sort_values("alpha")
+    sub_b = df_beta[df_beta["benchmark"] == bm].sort_values("beta")
+    ax.plot(sub_a["alpha"], sub_a["delta"].values, "o-", color=colors["alpha"],
+            linewidth=2, markersize=5, label="α sweep  (β = inv_degree)")
+    ax.plot(sub_b["beta"],  sub_b["delta"].values, "s--", color=colors["beta"],
+            linewidth=2, markersize=5, label="β sweep  (α = 1.0)")
+    ax.axvline(ALPHA_DEFAULT, color="gray", linestyle=":", linewidth=1.2,
+               alpha=0.7, label="paper default  α=1")
+    ax.axhline(0, color="black", linewidth=0.6)
+    ax.set_title(titles[bm], fontsize=13)
+    ax.set_xlabel("parameter value", fontsize=11)
+    ax.set_xlim(0, PARAM_MAX + 0.05)
+    ax.set_ylabel("Δ Spearman ρ vs baseline", fontsize=10)
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.3)
 
-    Z = griddata(pts, deltas, (A_dense, B_dense), method="cubic")
-
-    vmax = max(abs(deltas.min()), abs(deltas.max()), 1e-6)
-    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
-
-    cf = ax.contourf(A_dense, B_dense, Z, levels=20, cmap="RdYlGn", norm=norm)
-    ax.contour(A_dense, B_dense, Z, levels=10, colors="k", linewidths=0.4, alpha=0.4)
-    plt.colorbar(cf, ax=ax, label="Δ Spearman ρ")
-
-    sc = ax.scatter(
-        sub["alpha"], sub["beta"],
-        c=deltas, cmap="RdYlGn", norm=norm,
-        edgecolors="black", linewidths=0.6, s=60, zorder=5,
-    )
-    for _, row in sub.iterrows():
-        ax.annotate(
-            f"{row['delta']:+.3f}",
-            (row["alpha"], row["beta"]),
-            textcoords="offset points", xytext=(4, 3),
-            fontsize=7, color="black",
-        )
-
-    # mark paper's defaults: α=1, β≈1/degree ≈ 0.2
-    ax.axvline(1.0, color="navy",   linestyle="--", linewidth=1.0, alpha=0.7, label="α=1 (paper)")
-    ax.axhline(0.2, color="purple", linestyle="--", linewidth=1.0, alpha=0.7, label="β≈1/deg")
-
-    ax.set_xlabel("α (original-vector weight)", fontsize=10)
-    ax.set_ylabel("β (uniform neighbour weight)", fontsize=10)
-    ax.set_title(f"{bm}  (Δ Spearman ρ)", fontsize=11)
-    ax.legend(fontsize=8, loc="upper right")
-
-plt.suptitle(
-    "Continuous grid search: retrofitting Δ as a function of α and β\n"
-    "(GloVe 300d, WN_all, intersection OOV, 10 iterations)",
-    y=1.02, fontsize=12,
-)
+fig.suptitle("Effect of α and β on retrofitting quality  (GloVe 300d, WN_all)",
+             fontsize=13, y=1.02)
 plt.tight_layout()
-plt.savefig("figures/alpha_beta_contour.png", dpi=150, bbox_inches="tight")
-print("Saved figures/alpha_beta_contour.png")
+plt.savefig("figures/alpha_beta_curves.png", dpi=150, bbox_inches="tight")
+print("\nSaved figures/alpha_beta_curves.png")
 
 
-# best (α, β) per benchmark
-print("\nBest (α, β) per benchmark:")
+# ── figure 2: heatmaps (2D grid) ─────────────────────────────────────────────
+fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+for ax, bm in zip(axes, BENCHMARKS):
+    pivot = df_grid[df_grid["benchmark"] == bm].pivot(
+        index="beta", columns="alpha", values="delta"
+    )
+    vmax = max(abs(pivot.values.min()), abs(pivot.values.max()), 1e-6)
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    mesh = ax.pcolormesh(pivot.columns, pivot.index, pivot.values,
+                         cmap="RdYlGn", norm=norm, shading="nearest")
+    plt.colorbar(mesh, ax=ax, label="Δ Spearman ρ")
+
+    for i, beta in enumerate(pivot.index):
+        for j, alpha in enumerate(pivot.columns):
+            ax.text(alpha, beta, f"{pivot.loc[beta, alpha]:+.3f}",
+                    ha="center", va="center", fontsize=7)
+
+    best_idx   = np.unravel_index(pivot.values.argmax(), pivot.shape)
+    best_beta  = pivot.index[best_idx[0]]
+    best_alpha = pivot.columns[best_idx[1]]
+    best_delta = pivot.values[best_idx]
+    ax.plot(best_alpha, best_beta, "k*", markersize=14,
+            label=f"best: α={best_alpha:.2f}, β={best_beta:.2f}\nΔ={best_delta:+.3f}")
+    ax.legend(fontsize=8, loc="lower right")
+
+    ax.set_xlabel("α", fontsize=11)
+    ax.set_ylabel("β", fontsize=11)
+    ax.set_title(titles[bm], fontsize=13)
+    ax.set_xticks(ALPHAS)
+    ax.set_yticks(BETAS)
+    ax.tick_params(labelsize=8)
+
+fig.suptitle("2D grid: Δ Spearman ρ over (α, β)  (GloVe 300d, WN_all)",
+             fontsize=13, y=1.02)
+plt.tight_layout()
+plt.savefig("figures/alpha_beta_heatmap.png", dpi=150, bbox_inches="tight")
+print("Saved figures/alpha_beta_heatmap.png")
+
+
+# ── summary ───────────────────────────────────────────────────────────────────
+print(f"\nBest α (β={BETA_DEFAULT}):")
 for bm in BENCHMARKS:
-    sub  = df[df["benchmark"] == bm]
+    sub  = df_alpha[df_alpha["benchmark"] == bm]
     best = sub.loc[sub["delta"].idxmax()]
-    print(f"  {bm:12s}: α={best['alpha']:.4f}, β={best['beta']:.4f}"
-          f"  →  Δ = {best['delta']:+.4f}  (ρ = {best['retrofitted_rho']:.4f})")
+    print(f"  {bm:12s}: α={best['alpha']:.4f}  Δ={best['delta']:+.4f}")
 
-# alpha slices (mean Δ at each α, averaged over β)
-print("\nMean Δ at each α (averaged over β):")
+print(f"\nBest β (α={ALPHA_DEFAULT}):")
 for bm in BENCHMARKS:
-    sub   = df[df["benchmark"] == bm]
-    means = sub.groupby("alpha")["delta"].mean()
-    parts = "  ".join(f"α={a:.2f}→{v:+.4f}" for a, v in means.items())
-    print(f"  {bm:12s}: {parts}")
+    sub  = df_beta[df_beta["benchmark"] == bm]
+    best = sub.loc[sub["delta"].idxmax()]
+    print(f"  {bm:12s}: β={best['beta']:.4f}  Δ={best['delta']:+.4f}")
+
+print("\nBest (α, β) joint:")
+for bm in BENCHMARKS:
+    sub  = df_grid[df_grid["benchmark"] == bm]
+    best = sub.loc[sub["delta"].idxmax()]
+    print(f"  {bm:12s}: α={best['alpha']:.4f}, β={best['beta']:.4f}  Δ={best['delta']:+.4f}")
