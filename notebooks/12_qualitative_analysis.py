@@ -1,7 +1,4 @@
 """Qualitative analysis: which word pairs change most under retrofitting?
-
-Owner: Sharon — Person C.
-
 Top-15 pairs with largest INCREASE in cosine similarity (true synonyms moving closer)
 and top-15 with largest DECREASE. Analogous to Faruqui et al. (2015) Table 6.
 """
