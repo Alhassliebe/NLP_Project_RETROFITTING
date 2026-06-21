@@ -50,9 +50,9 @@ def evaluate_rg65(kv, df, label):
 print("\nBaseline (before retrofitting):")
 rho_before = evaluate_rg65(kv, df, "baseline")
 
-print("\nRetrofitting (n_iter=10)...")
+print("\nRetrofitting (filtering OOV, n_iter=10)...")
 kv_retro, conv = retrofit(kv, wolf, n_iter=10, alpha=1.0,
-                           beta="inv_degree",
+                           beta="inv_degree", oov_strategy="filtering",
                            return_convergence=True, verbose=True)
 print(f"  Convergence: {conv[0]:.2f} → {conv[-1]:.2e}")
 
@@ -75,35 +75,3 @@ print("QUALITATIVE ANALYSIS — pairs from Wolf")
 print("="*60)
 
 from retrofit import cosine_similarity
-
-
-test_pairs = [
-    ("chien", "aboyeur"),
-    ("heureux", "content"),
-    ("heureux", "euphorique"),
-    ("maison", "demeure"),
-    ("voiture", "automobile"),
-    ("rapide", "vite"),
-    ("travail", "emploi"),
-    ("enfant", "gosse"),
-    ("peur", "crainte"),
-    ("ami", "camarade"),
-]
-
-print(f"\n{'Mot 1':15s} {'Mot 2':15s} {'Avant':>8s} {'Après':>8s} {'Δ':>8s}")
-print("-" * 60)
-
-results = []
-for w1, w2 in test_pairs:
-    if w1 not in kv or w2 not in kv:
-        print(f"{w1:15s} {w2:15s}  OOV — skipped")
-        continue
-    before = cosine_similarity(kv[w1], kv[w2])
-    after  = cosine_similarity(kv_retro[w1], kv_retro[w2])
-    delta  = after - before
-    results.append((w1, w2, before, after, delta))
-    print(f"{w1:15s} {w2:15s} {before:8.4f} {after:8.4f} {delta:+8.4f}")
-
-improved = sum(1 for r in results if r[4] > 0)
-print(f"\nimproved: {improved}/{len(results)}")
-print(f"medium Δ: {sum(r[4] for r in results)/max(len(results),1):+.4f}")
