@@ -1,4 +1,4 @@
-"""Prototype of retrofitting (Faruqui et al., 2015). Alena Muravyeva - Week 1, Tasks A1.1-A1.2."""
+"""Prototype of retrofitting (Faruqui et al., 2015)"""
 import random
 from copy import deepcopy
 import numpy as np
