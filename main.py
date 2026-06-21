@@ -2,6 +2,7 @@
 Run the full retrofit pipeline: load embeddings → retrofit → evaluate.
 
 Usage:
+    python main.py --embedding glove --lexicon wn_all
     python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999
     python main.py --embedding fasttext --lexicon wolf --benchmark rg65
     python main.py --embedding glove --lexicon wn_all --no-retrofit
