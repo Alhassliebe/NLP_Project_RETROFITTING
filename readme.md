@@ -158,27 +158,28 @@ These files are too large for Git and must be downloaded manually.
 GloVe 6B (all four sizes, ~820 MB total):
 ```bash
 # macOS / Linux
-curl -L -o glove.6B.zip https://nlp.stanford.edu/data/glove.6B.zip
-unzip glove.6B.zip -d models/
-rm glove.6B.zip
+[ -f models/glove.6B.300d.txt ] || (curl -L -o glove.6B.zip https://nlp.stanford.edu/data/glove.6B.zip && unzip glove.6B.zip -d models/ && rm glove.6B.zip)
 ```
 ```powershell
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://nlp.stanford.edu/data/glove.6B.zip -OutFile glove.6B.zip
-Expand-Archive glove.6B.zip -DestinationPath models/
-Remove-Item glove.6B.zip
+if (-not (Test-Path "models\glove.6B.300d.txt")) {
+    Invoke-WebRequest -Uri https://nlp.stanford.edu/data/glove.6B.zip -OutFile glove.6B.zip
+    Expand-Archive glove.6B.zip -DestinationPath models/
+    Remove-Item glove.6B.zip
+}
 ```
 
 **French embeddings — place in `models/`** (required for notebook 10 only, ~4 GB):
 ```bash
 # macOS / Linux
-curl -L -o models/cc.fr.300.bin.gz https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz
-gunzip models/cc.fr.300.bin.gz
+[ -f models/cc.fr.300.bin ] || (curl -L -o models/cc.fr.300.bin.gz https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz && gunzip models/cc.fr.300.bin.gz)
 ```
 ```powershell
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz -OutFile models\cc.fr.300.bin.gz
-# then decompress with 7-Zip or another tool
+if (-not (Test-Path "models\cc.fr.300.bin")) {
+    Invoke-WebRequest -Uri https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.bin.gz -OutFile models\cc.fr.300.bin.gz
+    # then decompress with 7-Zip or another tool
+}
 ```
 
 **French WordNet — place in `datasets/`** (required for notebook 10 only):
