@@ -48,17 +48,16 @@ Note: Word2Vec Google News was excluded due to memory constraints (8 GB RAM).
 ### Lexicons (→ `datasets/`)
 | File | Source |
 |---|---|
-| `wolf-1.0b4.xml` | https://almanach.inria.fr (or Google Drive link in task brief) |
+| `wolf-1.0b4.xml` | 
 | WordNet | via NLTK (auto-downloaded) |
 | FrameNet | via NLTK (auto-downloaded) |
 
 ### Benchmarks (→ `datasets/`)
 ```bash
 # Download automatically
-python download_benchmarks.py   # downloads RG-65-en, SimLex-999
-
+# downloads RG-65-en, WordSim-353, SimLex-999 python download_benchmarks.py   
 # Download manually
-# RG-65 French: Google Drive link in task brief → datasets/rg65_french.txt
+# RG-65 French: included in the repository → datasets/rg65_french.txt
 # WordSim-353:  curl -L -o datasets/wordsim353crowd.csv "https://raw.githubusercontent.com/mfaruqui/eval-word-vectors/master/data/word-sim/EN-WS-353-ALL.txt"
 # SST-2:        downloaded automatically via HuggingFace datasets library
 ```
@@ -120,7 +119,7 @@ retrofitting/
 │   ├── beta_sweep.csv         #   β sweep results
 │   └── grid2d.csv             #   2D grid results
 ├── main.py                    # CLI entry point
-├── download_benchmarks.py     # Auto-download RG-65, SimLex-999
+├── download_benchmarks.py     # Auto-download RG-65, WordSim-353, SimLex-999
 ├── requirements.txt
 └── readme.md
 ```
@@ -192,20 +191,20 @@ python notebooks/14_convergence_prototype.py
 |---|---|---|---|
 | RG-65 | 0.766 | 0.843 | +0.077 |
 | SimLex-999 | 0.371 | 0.461 | +0.091 |
-| WordSim-353 | 0.609 | 0.624 | +0.015 |
+| WordSim-353 | 0.543 | 0.606 | +0.063 |
 
-### French (fastText-fr + Wolf, intersection OOV, n_iter=10)
+### French (fastText-fr + Wolf, n_iter=10)
 
 | Benchmark | Baseline ρ | Retrofitted ρ | Δ |
 |---|---|---|---|
-| RG-65-fr | 0.811 | 0.791 | -0.020 |
+| RG-65-fr | 0.8135 | 0.791 | -0.0196 |
 
 ### Sentiment Analysis (SST-2, GloVe 300d + WN_all)
 
 | Metric | Baseline | Retrofitted | Δ |
 |---|---|---|---|
-| Accuracy | 0.7706 | 0.7672 | -0.0034 |
-| F1 | 0.7845 | 0.7824 | -0.0021 |
+| Accuracy | 0.7718 | 0.7683 | -0.0035 |
+| F1 | 0.7858 | 0.7837 | -0.0021 |
 
 ---
 
