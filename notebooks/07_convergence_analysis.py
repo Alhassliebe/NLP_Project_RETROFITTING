@@ -21,9 +21,6 @@ lexicon = build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
 baseline_rho = {r.benchmark: r.spearman_rho for r in evaluate_all(glove).itertuples()}
 print(f"\nBaseline: {baseline_rho}")
 
-# Run retrofit once with the maximum n_iter, recording the convergence log
-# Then we can re-evaluate at any intermediate point by re-running with smaller n_iter.
-# (Cheaper than running 7 separate times, since each retrofit is ~3-5 seconds.)
 rows = []
 for n in N_ITERS_TO_TEST:
     print(f"\n--- n_iter = {n} ---")
@@ -50,7 +47,7 @@ print("\nSaved to results/convergence_analysis.csv")
 fig, ax = plt.subplots(figsize=(8, 5))
 for b in ["rg65", "simlex999", "wordsim353"]:
     ax.plot(df["n_iter"], df[f"{b}_rho"], "o-", label=b, linewidth=2, markersize=7)
-    ax.axhline(baseline_rho[b], linestyle="--", alpha=0.4, color=ax.lines[-1].get_color())
+    ax.axhline(baseline_rho[b], linestyle="--", alpha=0.4, color=ax.lines[-1].get_color())  # baseline
 ax.set_xlabel("Number of retrofit iterations")
 ax.set_ylabel("Spearman ρ")
 ax.set_title("Retrofitting performance vs n_iter (GloVe 300d, WN_all, intersection OOV)")

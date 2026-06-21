@@ -39,7 +39,7 @@ def collect_candidates(pos):
             cands.append(name)
     return sorted(set(cands))
 
-# Reproduce the same sample as the prototype
+# same sample as nb01
 glove_set = set()
 with open(GLOVE_PATH, encoding="utf-8") as f:
     for i, line in enumerate(f):
@@ -57,7 +57,6 @@ for seed in seeds:
     sample.update(nbrs[:NEIGHBORS_PER_SEED])
 sample_set = set(sample)
 
-# Load embedding rows into a KeyedVectors
 words, vecs = [], []
 with open(GLOVE_PATH, encoding="utf-8") as f:
     for line in f:
@@ -69,12 +68,10 @@ kv = KeyedVectors(vector_size=100)
 kv.add_vectors(words, np.stack(vecs))
 print(f"Loaded {len(words)} words into KeyedVectors")
 
-# Build WN_all lexicon
 vocab = set(words)
 lex_all = {w: sorted(get_related(w, ("synonyms", "hypernyms", "hyponyms")) & vocab) for w in vocab
            if get_related(w, ("synonyms", "hypernyms", "hyponyms")) & vocab}
 
-# Run production retrofit() and verify
 new_kv, conv = retrofit(kv, lex_all, n_iter=10, return_convergence=True)
 print(f"\nConvergence: {conv[0]:.4f} → {conv[-1]:.2e}")
 assert conv[-1] < conv[0] * 1e-3, "Algorithm did not converge"

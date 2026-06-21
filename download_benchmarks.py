@@ -28,14 +28,14 @@ try:
 except Exception as e:
     print(f"  RG-65 download failed: {e}")
 
-# WordSim-353 — Agirre et al. 2009 split (similarity vs relatedness)
-# Mirrored at github.com/gsi-upm/sematch — stable, public, uses raw.githubusercontent.com
+# WordSim-353  Agirre et al. 2009 split (similarity vs relatedness)
+# Mirrored at github.com/gsi-upm/sematch  stable, public, uses raw.githubusercontent.com
 WS353_SIM_URL = "https://raw.githubusercontent.com/gsi-upm/sematch/master/sematch/dataset/wordsim/wordsim_similarity_goldstandard.txt"
 WS353_REL_URL = "https://raw.githubusercontent.com/gsi-upm/sematch/master/sematch/dataset/wordsim/wordsim_relatedness_goldstandard.txt"
 
 for label, url, path in [
-    ("WordSim-353 (similarity)", WS353_SIM_URL, "datasets/wordsim353_sim.csv"),
-    ("WordSim-353 (relatedness)", WS353_REL_URL, "datasets/wordsim353_rel.csv"),
+    ("WordSim-353 (similarity)", WS353_SIM_URL, "datasets/wordsim353_similarity.csv"),
+    ("WordSim-353 (relatedness)", WS353_REL_URL, "datasets/wordsim353_relatedness.csv"),
 ]:
     try:
         print(f"\nDownloading {label}...")
@@ -47,7 +47,7 @@ for label, url, path in [
     except Exception as e:
         print(f"  {label} failed: {e}")
 
-# SimLex-999 — Hill et al. 2015, functional similarity (separate from relatedness)
+# SimLex-999 Hill et al. 2015, functional similarity (separate from relatedness)
 # Hosted at fh295.github.io as a zip; we fetch from a mirror that exposes a single TSV
 SIMLEX_URL = "https://fh295.github.io/SimLex-999.zip"
 try:
@@ -73,7 +73,15 @@ try:
 except Exception as e:
     print(f"  SimLex-999 failed: {e}")
 
-# Summary
+# RG-65 French  Joubarne & Inkpen (2011), sourced from Hussain et al. (2020) Mendeley dataset.
+# datasets/rg65_french.txt is included in the repository (tab-separated: word1\tword2\tscore).
+print("\nProcessing RG-65-fr...")
+with open("datasets/rg65_french.txt", encoding="utf-8") as f:
+    rows = [(p[0], p[1], float(p[2])) for line in f
+            if (p := line.strip().split("\t")) and len(p) == 3]
+save_pairs_csv(rows, "datasets/rg65_fr.csv")
+print(f"  rg65_fr.csv written ({len(rows)} pairs)")
+
 print("\nFinal contents of datasets/:")
 for f in sorted(os.listdir("datasets")):
     path = os.path.join("datasets", f)

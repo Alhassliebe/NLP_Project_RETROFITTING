@@ -1,23 +1,21 @@
 """
-Entry point: run the full pipeline (load -> retrofit -> evaluate).
+Run the full retrofit pipeline: load embeddings → retrofit → evaluate.
 
 Usage:
     python main.py --embedding glove --lexicon wn_all
     python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999
     python main.py --embedding fasttext --lexicon wolf --benchmark rg65
-    python main.py --embedding glove --lexicon wn_syn --n-iter 25 --alpha 1.0
     python main.py --embedding glove --lexicon wn_all --no-retrofit
 """
 import argparse
 import sys
 import os
-sys.path.insert(0, "src")
 
-from utils import setup_logging
-from preprocessing import load_glove, load_fasttext, build_lexicon
-from retrofit import retrofit
-from eval import evaluate_all
-from config import (
+from src.utils import setup_logging
+from src.preprocessing import load_glove, load_fasttext, build_lexicon
+from src.retrofit import retrofit
+from src.eval import evaluate_all
+from src.config import (
     GLOVE_300D_PATH, FASTTEXT_FR_PATH,
     WOLF_PATH, DEFAULT_N_ITER, DEFAULT_ALPHA
 )
@@ -44,7 +42,7 @@ def main():
         epilog="""
 Examples:
   python main.py --embedding glove --lexicon wn_all
-  python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999
+  python main.py --embedding glove --lexicon wn_all --benchmark rg65 simlex999 wordsim353
   python main.py --embedding fasttext --lexicon wolf
   python main.py --embedding glove --lexicon wn_syn --n-iter 25
   python main.py --embedding glove --lexicon wn_all --no-retrofit
@@ -88,14 +86,14 @@ Examples:
     os.makedirs("results", exist_ok=True)
     os.makedirs("figures", exist_ok=True)
 
-    # ── 1. Load embeddings ────────────────────────────────────────────────────
+    # load embeddings
     log.info(f"Loading {args.embedding} embeddings...")
     if args.embedding == "glove":
         embeddings = load_glove(EMBEDDING_PATHS["glove"])
     else:
         embeddings = load_fasttext(EMBEDDING_PATHS["fasttext"])
 
-    # ── 2. Baseline evaluation ────────────────────────────────────────────────
+    # baseline eval
     log.info("Evaluating baseline...")
     baseline = evaluate_all(embeddings, args.benchmark)
     print("\n── BASELINE ──────────────────────────────────────────")
@@ -105,7 +103,7 @@ Examples:
         print("\nSkipping retrofitting (--no-retrofit flag set).")
         return
 
-    # ── 3. Load lexicon ───────────────────────────────────────────────────────
+    # load lexicon
     log.info(f"Building {args.lexicon} lexicon...")
     lexicon_kwargs = {"cache_path": LEXICON_CACHE[args.lexicon]}
     if args.lexicon == "wolf":
@@ -114,7 +112,7 @@ Examples:
     lexicon = build_lexicon(args.lexicon, **lexicon_kwargs)
     log.info(f"Lexicon loaded: {len(lexicon)} entries")
 
-    # ── 4. Retrofit ───────────────────────────────────────────────────────────
+    # retrofit
     log.info(f"Retrofitting: n_iter={args.n_iter}, alpha={args.alpha}, "
              f"beta={args.beta}, oov={args.oov_strategy}")
     retrofitted, conv = retrofit(
@@ -128,11 +126,15 @@ Examples:
     )
     log.info(f"Convergence: {conv[0]:.2f} → {conv[-1]:.2e}")
 
-    # ── 5. Retrofitted evaluation ─────────────────────────────────────────────
+    # save
+    save_path = f"models/{args.embedding}_300d_retrofitted_{args.lexicon}.kv"
+    retrofitted.save(save_path)
+    log.info(f"Saved retrofitted vectors to {save_path}")
+
+    # eval
     log.info("Evaluating retrofitted embeddings...")
     retro = evaluate_all(retrofitted, args.benchmark)
 
-    # ── 6. Summary table ──────────────────────────────────────────────────────
     print("\n── RESULTS ───────────────────────────────────────────")
     print(f"{'benchmark':12s} {'baseline ρ':>12s} {'retrofitted ρ':>16s} {'Δ':>8s}")
     print("-" * 52)
@@ -142,14 +144,10 @@ Examples:
         print(f"{b.benchmark:12s} {b.spearman_rho:12.4f} "
               f"{r.spearman_rho:16.4f} {sign}{abs(delta):.4f}")
 
-    print(f"\n── CONFIG ────────────────────────────────────────────")
-    print(f"  Embedding   : {args.embedding}")
-    print(f"  Lexicon     : {args.lexicon} ({len(lexicon)} entries)")
-    print(f"  n_iter      : {args.n_iter}")
-    print(f"  alpha       : {args.alpha}")
-    print(f"  beta        : {args.beta}")
-    print(f"  OOV strategy: {args.oov_strategy}")
-    print(f"  Convergence : {conv[0]:.2f} → {conv[-1]:.2e}")
+    print(f"\n  embedding={args.embedding}, lexicon={args.lexicon} ({len(lexicon)} entries)")
+    print(f"  n_iter={args.n_iter}, alpha={args.alpha}, beta={args.beta}, oov={args.oov_strategy}")
+    print(f"  convergence: {conv[0]:.2f} → {conv[-1]:.2e}")
+    print(f"  saved to: {save_path}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 """
 Shared utilities.
 
-Owner: Person B (with contributions from all)
 """
 from __future__ import annotations
 import logging

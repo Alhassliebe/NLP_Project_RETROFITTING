@@ -1,4 +1,4 @@
-"""Loaders for embeddings and WordNet lexicons."""
+"""Loaders for embeddings and lexicons."""
 import os, pickle
 from pathlib import Path
 import numpy as np
@@ -7,7 +7,7 @@ from nltk.corpus import wordnet as wn
 
 
 def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors:
-    """Load GloVe text-format embeddings into a gensim KeyedVectors."""
+    """Load GloVe text-format embeddings into KeyedVectors."""
     path = Path(path)
     print(f"Loading GloVe from {path.name}...")
     words, vecs = [], []
@@ -16,7 +16,8 @@ def load_glove(path: str | Path, vector_size: int | None = None) -> KeyedVectors
             parts = line.rstrip().split(" ")
             words.append(parts[0])
             vecs.append(np.array(parts[1:], dtype=np.float32))
-    if vector_size is None: vector_size = len(vecs[0])
+    if vector_size is None:
+        vector_size = len(vecs[0])
     kv = KeyedVectors(vector_size=vector_size)
     kv.add_vectors(words, np.stack(vecs))
     print(f"  loaded {len(words)} vectors, dim={vector_size}")
@@ -40,7 +41,8 @@ def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
     key = tuple(sorted(relations))
     if cache_path and Path(cache_path).exists():
         print(f"Loading cached lexicon from {cache_path}...")
-        with open(cache_path, "rb") as f: cached = pickle.load(f)
+        with open(cache_path, "rb") as f:
+            cached = pickle.load(f)
         if cached.get("relations") == key:
             print(f"  loaded {len(cached['lexicon'])} entries")
             return cached["lexicon"]
@@ -54,15 +56,19 @@ def build_wordnet_lexicon(relations=("synonyms", "hypernyms", "hyponyms"),
         if "synonyms" in relations:
             out.update(norm(l.name()) for l in synset.lemmas() if "_" not in l.name())
         if "hypernyms" in relations:
-            out.update(norm(l.name()) for hyp in synset.hypernyms() for l in hyp.lemmas() if "_" not in l.name())
+            out.update(norm(l.name()) for hyp in synset.hypernyms()
+                       for l in hyp.lemmas() if "_" not in l.name())
         if "hyponyms" in relations:
-            out.update(norm(l.name()) for hyp in synset.hyponyms() for l in hyp.lemmas() if "_" not in l.name())
+            out.update(norm(l.name()) for hyp in synset.hyponyms()
+                       for l in hyp.lemmas() if "_" not in l.name())
         for lemma in synset.lemmas():
             w = norm(lemma.name())
-            if "_" in lemma.name(): continue
+            if "_" in lemma.name():
+                continue
             lexicon.setdefault(w, set()).update(out - {w})
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items() if neighbors}
-    print(f"  built {len(lexicon)} entries, avg degree {np.mean([len(v) for v in lexicon.values()]):.2f}")
+    print(f"  built {len(lexicon)} entries, avg degree "
+          f"{np.mean([len(v) for v in lexicon.values()]):.2f}")
 
     if cache_path:
         with open(cache_path, "wb") as f:
@@ -108,8 +114,8 @@ def build_wolf_lexicon(path: str | Path,
                 lexicon.setdefault(word, set()).update(neighbors)
 
     lexicon = {w: sorted(neighbors) for w, neighbors in lexicon.items()}
-    print(f"  built {len(lexicon)} entries")
-    print(f"  avg degree: {sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
+    print(f"  built {len(lexicon)} entries, avg degree "
+          f"{sum(len(v) for v in lexicon.values()) / max(len(lexicon), 1):.2f}")
 
     if cache_path:
         with open(cache_path, "wb") as f:

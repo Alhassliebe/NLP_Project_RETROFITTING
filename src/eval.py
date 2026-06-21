@@ -1,5 +1,4 @@
-"""Evaluation: lexical similarity benchmarks and sentiment analysis.
-"""
+"""Evaluation: similarity benchmarks (Spearman ρ) and sentiment classification."""
 from __future__ import annotations
 from pathlib import Path
 import os
@@ -11,9 +10,8 @@ from sklearn.metrics import accuracy_score, f1_score
 from gensim.models import KeyedVectors
 
 
-# Each loader: (filename_candidates, sep, word1_col, word2_col, score_col)
-# Multiple filename candidates allow either the split or the crowd version of WordSim-353
-# (whichever happens to be on disk).
+# benchmark file paths and column names
+# WordSim-353 can be the split (similarity) or crowd version, try both
 _LOADERS = {
     "rg65":       (["datasets/rg65_en.csv"], ",", "word1", "word2", "score"),
     "simlex999":  (["datasets/simlex999.csv"], ",", "word1", "word2", "score"),
@@ -29,14 +27,16 @@ _LOADERS = {
 
 def _resolve_column(df: pd.DataFrame, candidates) -> str:
     """Pick whichever candidate column name exists in df."""
-    if isinstance(candidates, str): return candidates
+    if isinstance(candidates, str):
+        return candidates
     for c in candidates:
-        if c in df.columns: return c
+        if c in df.columns:
+            return c
     raise KeyError(f"None of {candidates} found in {list(df.columns)}")
 
 
 def load_benchmark(name: str) -> pd.DataFrame:
-    """Load a similarity benchmark by short name, returning columns [word1, word2, score]."""
+    """Load a similarity benchmark by short name → columns [word1, word2, score]."""
     if name not in _LOADERS:
         raise ValueError(f"Unknown benchmark: {name}. Known: {list(_LOADERS)}")
     paths, sep, c1, c2, cs = _LOADERS[name]
@@ -54,7 +54,7 @@ def _cos(v1: np.ndarray, v2: np.ndarray) -> float:
 
 
 def evaluate_similarity(embeddings: KeyedVectors, benchmark: str) -> dict:
-    """Spearman rank correlation between cosine similarity and human judgments."""
+    """Spearman ρ between embedding cosine similarity and human judgments."""
     df = load_benchmark(benchmark)
     df["word1"], df["word2"] = df["word1"].str.lower(), df["word2"].str.lower()
     vocab = embeddings.key_to_index
@@ -72,7 +72,7 @@ def evaluate_similarity(embeddings: KeyedVectors, benchmark: str) -> dict:
 
 
 def evaluate_all(embeddings: KeyedVectors, benchmarks: list[str] | None = None) -> pd.DataFrame:
-    """Evaluate on the listed benchmarks; return a tidy DataFrame summary."""
+    """Evaluate on all benchmarks; return a tidy DataFrame."""
     benchmarks = benchmarks or list(_LOADERS.keys())
     return pd.DataFrame([evaluate_similarity(embeddings, b) for b in benchmarks])
 
@@ -82,12 +82,11 @@ def evaluate_sentiment(
     train_data: pd.DataFrame,
     test_data: pd.DataFrame,
 ) -> dict[str, float]:
-    """
-    Sentence-level sentiment classification: average word vectors -> logistic regression.
+    """Sentence-level sentiment: average word vectors → logistic regression on SST-2.
 
     train_data / test_data: DataFrame with columns
-        tokens: list[str]   (already tokenized and lowercased)
-        label:  int         (0 = negative, 1 = positive)
+        tokens: list[str]  (tokenized, lowercased)
+        label:  int        (0 = negative, 1 = positive)
     """
     def sentence_vec(tokens):
         vecs = [embeddings[w] for w in tokens if w in embeddings]
