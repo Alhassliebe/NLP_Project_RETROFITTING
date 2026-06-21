@@ -26,7 +26,7 @@ Note: Word2Vec Google News was excluded due to memory constraints (8 GB RAM).
 ### Lexicons (→ `datasets/`)
 | File | Source |
 |---|---|
-| `wolf-1.0b4.xml` | 
+| `wolf-1.0b4.xml` | Wolf : https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 |
 | WordNet | via NLTK (auto-downloaded) |
 | FrameNet | via NLTK (auto-downloaded) |
 
