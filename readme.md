@@ -99,14 +99,26 @@ retrofitting/
 │   ├── 06_oov_comparison.py            # Alena: OOV strategy comparison
 │   ├── 07_convergence_analysis.py      # Alena: n_iter sensitivity
 │   ├── 08_dimensionality_experiment.py # Alena: 50/100/200/300d comparison
-│   ├── 09_alpha_beta_grid.py           # Alena: hyperparameter grid search
+│   ├── 09_alpha_beta_grid.py           # Alena: hyperparameter sensitivity
+│   │                                   #   - α sweep (β fixed at inv_degree, 10 steps)
+│   │                                   #   - β sweep (α fixed at 1.0, 10 steps)
+│   │                                   #   - 2D joint grid search (10×10 = 100 runs)
+│   │                                   #   → figures/alpha_beta_curves.png
+│   │                                   #   → figures/alpha_beta_heatmap.png
 │   ├── 10_french_experiment.py         # Botakoz: fastText-fr + Wolf + RG-65-fr
 │   ├── 11_sentiment_analysis.py        # Sharon: SST-2 baseline vs retrofitted
-│   └── 12_qualitative_analysis.py      # Sharon: top-15 pairs improved/worsened
+│   ├── 12_qualitative_analysis.py      # Sharon: top-15 pairs improved/worsened
+│   ├── 13_optimization_benchmark.py    # Alena: runtime profiling of retrofit loop
+│   └── 14_convergence_prototype.py     # Alena: convergence behaviour prototype
 ├── datasets/                  # Benchmark datasets (gitignored)
 ├── models/                    # Pre-trained embeddings (gitignored)
 ├── figures/                   # Generated plots (gitignored)
+│   ├── alpha_beta_curves.png  #   sweep line plots (notebook 09)
+│   └── alpha_beta_heatmap.png #   2D grid heatmaps (notebook 09)
 ├── results/                   # CSV outputs from experiments (gitignored)
+│   ├── alpha_sweep.csv        #   α sweep results
+│   ├── beta_sweep.csv         #   β sweep results
+│   └── grid2d.csv             #   2D grid results
 ├── main.py                    # CLI entry point
 ├── download_benchmarks.py     # Auto-download RG-65, SimLex-999
 ├── requirements.txt
@@ -151,6 +163,9 @@ Retrofitted vectors are automatically saved to `models/` after each run.
 ### Run individual experiments
 
 ```bash
+# Hyperparameter sensitivity (α/β sweeps + 2D grid) — saves 3 CSVs and 2 figures
+python notebooks/09_alpha_beta_grid.py
+
 # French multilingual experiment
 python notebooks/10_french_experiment.py
 
@@ -159,6 +174,12 @@ python notebooks/11_sentiment_analysis.py
 
 # Qualitative analysis (top pairs improved/worsened)
 python notebooks/12_qualitative_analysis.py
+
+# Runtime profiling
+python notebooks/13_optimization_benchmark.py
+
+# Convergence behaviour
+python notebooks/14_convergence_prototype.py
 ```
 
 ---
