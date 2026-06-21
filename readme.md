@@ -185,15 +185,13 @@ Invoke-WebRequest -Uri https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.
 **French WordNet — place in `datasets/`** (required for notebook 10 only):
 ```bash
 # macOS / Linux
-[ -f data/wolf-1.0b4.xml ] || (curl -L -o data/wolf-1.0b4.xml.bz2 https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 && bunzip2 datasets/wolf-1.0b4.xml.bz2)
+[ -f datasets/wolf-1.0b4.xml ] || (curl -L -o datasets/wolf-1.0b4.xml.bz2 https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 && bunzip2 datasets/wolf-1.0b4.xml.bz2) 
 ```
 ```powershell
 # Windows (PowerShell)
-if (-not (Test-Path "data\wolf-1.0b4.xml")) {
-    Invoke-WebRequest -Uri https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 -OutFile data\wolf-1.0b4.xml.bz2
-    # decompress with 7-Zip:
-    & "C:\Program Files\7-Zip\7z.exe" e data\wolf-1.0b4.xml.bz2 -odata\
-    Remove-Item data\wolf-1.0b4.xml.bz2
+if (-not (Test-Path "datasets\wolf-1.0b4.xml")) {
+    Invoke-WebRequest -Uri https://almanach.inria.fr/software_and_resources/downloads/wolf-1.0b4.xml.bz2 -OutFile datasets\wolf-1.0b4.xml.bz2
+    # decompress with 7-Zip or another tool, then place wolf-1.0b4.xml in datasets\
 }
 ```
 
