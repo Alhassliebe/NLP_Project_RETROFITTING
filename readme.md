@@ -199,7 +199,7 @@ if (-not (Test-Path "data\wolf-1.0b4.xml")) {
 
 **English benchmarks** (RG-65, SimLex-999, WordSim-353) can be downloaded by running:
 ```bash
-python scripts/download_benchmarks.py
+python download_benchmarks.py
 ```
 
 ### 3. Run individual experiments
