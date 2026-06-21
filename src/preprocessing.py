@@ -161,7 +161,7 @@ def build_lexicon(name: str, **kwargs) -> dict[str, list[str]]:
         )
 
 
-def build_framenet_lexicon() -> dict[str, list[str]]:
+def build_framenet_lexicon(cache_path=None) -> dict[str, list[str]]:
     """Build a lexicon from FrameNet: connect words that evoke the same frame."""
     from nltk.corpus import framenet as fn
 
