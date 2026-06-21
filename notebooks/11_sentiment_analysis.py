@@ -1,7 +1,4 @@
 """Sentiment analysis on SST-2: baseline GloVe vs retrofitted GloVe.
-
-Owner: Sharon — Person C.
-
 Pipeline (Faruqui et al. 2015 Section 5):
 average word vectors per sentence -> logistic regression -> accuracy + F1 on SST-2.
 """
