@@ -1,6 +1,6 @@
 """Dimensionality experiment: retrofit GloVe at dim ∈ {50, 100, 200, 300} and measure Δ.
 
-Memory-conscious version: each dimension is processed in a subprocess, so memory is
+Memory-conscious version - each dimension is processed in a subprocess, so memory is
 fully released between runs. Run with: python notebooks/08_dimensionality_experiment.py
 """
 import sys, os, json, gc, subprocess
